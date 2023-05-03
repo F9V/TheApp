@@ -656,7 +656,7 @@ def crea_mappa():
    
 
     # Interfaccia utente
-    st.sidebar.title("Filtro per campagna e ruolo")
+    st.sidebar.title("Filtra per metadata")
     ruoli_sel = st.sidebar.multiselect("Seleziona uno o più ruoli", ruoli, default=ruoli)
     esperienza_sel = st.sidebar.multiselect("Seleziona l'esperienza", esperienza, default=esperienza)
     settore_sel = st.sidebar.multiselect("Seleziona il settore", settore, default=settore)
