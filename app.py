@@ -777,8 +777,8 @@ def main_style():
 
 
 # Titolo dell'applicazione
-st.set_page_config(page_title="Umanapp - Applicazione di visualizzazione dei dati", page_icon=":chart_with_upwards_trend:",layout="wide")
-st.title("Umanapp - Applicazione di visualizzazione dei dati")
+st.set_page_config(page_title="Applicazione di visualizzazione dei dati", page_icon=":chart_with_upwards_trend:",layout="wide")
+st.title("Applicazione di visualizzazione dei dati")
 
 
 # Menu a tab
