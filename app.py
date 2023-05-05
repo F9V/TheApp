@@ -29,7 +29,6 @@ def ReadAll(file_sp, file_org, file_ex, file_sp_campaign):
 
 
 
-
     spon_annunci = pd.read_csv(file_sp, index_col=None, header = 0,encoding='utf8')
 
 
@@ -42,6 +41,9 @@ def ReadAll(file_sp, file_org, file_ex, file_sp_campaign):
 
 
     spon_camp = pd.read_csv(file_sp_campaign, index_col=None, header = 0,encoding='utf8')
+
+
+
 
 
 
@@ -122,29 +124,22 @@ def ReadAll(file_sp, file_org, file_ex, file_sp_campaign):
 
 
     # rimuovi i duplicati dalla colonna 'jobReferenceNumber' e raggruppa i dati nelle altre colonne
-    spon_annunci = spon_annunci.groupby('jobReferenceNumber', as_index=False).first()
-    org_annunci = org_annunci.groupby('jobReferenceNumber', as_index=False).first()
 
 
+    g = spon_annunci.groupby(['jobReferenceNumber','regionFullName','city'], as_index=False).agg({'sponsored impressions':'sum',     'sponsored clicks': 'sum', 'sponsored apply starts': 'sum','sumCostLocal':'sum'})
+    h = org_annunci.groupby(['jobReferenceNumber','regionFullName','city'], as_index=False).agg({'organic impressions': 'sum',       'organic clicks': 'sum', 'organic apply starts': 'sum','sumCostLocal':'sum'})
+    g= g.drop_duplicates(subset='jobReferenceNumber',  keep='first')
+    h= h.drop_duplicates(subset='jobReferenceNumber',  keep='first')
 
 
-    tot2 = pd.merge(spon_annunci, org_annunci, on='jobReferenceNumber', how='outer')
+    # Unisce sponsorizzato e organico
+    tot2= pd.merge(g,h, on ='jobReferenceNumber', how ='outer')
 
 
 
 
     tot2.info()
 
-
-
-
-    tot2['title'] = tot2['title_x'].combine_first(tot2['title_y'])
-    tot2.drop(['title_x', 'title_y'], axis=1, inplace=True)
-
-
-
-    tot2['countryFullName'] = tot2['countryFullName_x'].combine_first(tot2['countryFullName_y'])
-    tot2.drop(['countryFullName_x', 'countryFullName_y'], axis=1, inplace=True)
 
 
 
@@ -163,7 +158,7 @@ def ReadAll(file_sp, file_org, file_ex, file_sp_campaign):
 
 
 
-    tot2 = tot2.rename(columns={'sumCostLocal_x': 'budget'})
+    tot2 = tot2.rename(columns={'sumCostLocal_x': 'sumCostLocal'})
 
 
     # Rinomino colonne reference number e total cost in Export
@@ -172,10 +167,10 @@ def ReadAll(file_sp, file_org, file_ex, file_sp_campaign):
     export = export.rename(columns={"Reference Number": "jobReferenceNumber", 'Total Cost':'sumCostLocal'})
 
 
-    # Tengo solo Campaign JobReference Category e sum Cost local di Export
+    # Tengo solo alcune colonne  di Export
 
 
-    export= export[['Campaign','jobReferenceNumber','Category','sumCostLocal']]
+    export= export[['Campaign','jobReferenceNumber','Category','sumCostLocal','Job Title']]
 
 
 
@@ -186,11 +181,11 @@ def ReadAll(file_sp, file_org, file_ex, file_sp_campaign):
 
 
     # Raggruppiamo per jobReferenceNumber e sommiamo i costi locali
-    grouped_export = export.groupby('jobReferenceNumber').agg({'sumCostLocal': 'sum', 'maxCampaign': 'max', 'Category': 'max'})
+    grouped_export = export.groupby('jobReferenceNumber').agg({'sumCostLocal': 'sum', 'maxCampaign': 'max', 'Category': 'max', 'Job Title':'max'})
 
 
     # Selezioniamo soltanto le colonne che ci interessano e rinominiamo "maxCampaign" in "Campaign"
-    c = grouped_export[['maxCampaign', 'sumCostLocal', 'Category']].rename(columns={'maxCampaign': 'Campaign'})
+    c = grouped_export[['maxCampaign', 'Category','Job Title']].rename(columns={'maxCampaign': 'Campaign'})
 
 
 
@@ -268,8 +263,8 @@ def ReadAll(file_sp, file_org, file_ex, file_sp_campaign):
     #Prendo il numero degli annunci da export
     annunci = export.groupby('Campaign')['jobReferenceNumber'].count().reset_index()
 
-    #Prendo il budget da export
-    budget = export.groupby('Campaign')['sumCostLocal'].sum().reset_index()
+    #Prendo il budget
+    budget = tot_and_campaign.groupby('Campaign')['sumCostLocal'].sum().reset_index()
 
 
 
@@ -326,11 +321,11 @@ def ReadAll(file_sp, file_org, file_ex, file_sp_campaign):
 
     Ruolo = pd.pivot_table(tot_and_campaign, 
                             index='Ruolo', 
-                            values=['budget', 'organic apply starts', 'sponsored apply starts', 'jobReferenceNumber'], 
-                            aggfunc={'budget': 'sum', 'organic apply starts': 'sum', 'sponsored apply starts': 'sum', 'jobReferenceNumber': 'count'})
+                            values=['sumCostLocal', 'organic apply starts', 'sponsored apply starts', 'jobReferenceNumber'], 
+                            aggfunc={'sumCostLocal': 'sum', 'organic apply starts': 'sum', 'sponsored apply starts': 'sum', 'jobReferenceNumber': 'count'})
 
 
-    Ruolo = Ruolo.rename(columns={"budget": "Budget", 'jobReferenceNumber':'Annunci','organic apply starts':'Candidature avviate organiche','sponsored apply starts':'Candidature avviate sponsorizzate'})
+    Ruolo = Ruolo.rename(columns={"sumCostLocal": "Budget", 'jobReferenceNumber':'Annunci','organic apply starts':'Candidature avviate organiche','sponsored apply starts':'Candidature avviate sponsorizzate'})
 
     Ruolo['Candidature avviate organiche per annuncio']= round(Ruolo['Candidature avviate organiche']/Ruolo['Annunci'],1)
 
@@ -347,12 +342,12 @@ def ReadAll(file_sp, file_org, file_ex, file_sp_campaign):
 
     Esperienza = pd.pivot_table(tot_and_campaign, 
                             index='Esperienza', 
-                            values=['budget', 'organic apply starts', 'sponsored apply starts', 'jobReferenceNumber'], 
-                            aggfunc={'budget': 'sum', 'organic apply starts': 'sum', 'sponsored apply starts': 'sum', 'jobReferenceNumber': 'count'})
+                            values=['sumCostLocal', 'organic apply starts', 'sponsored apply starts', 'jobReferenceNumber'], 
+                            aggfunc={'sumCostLocal': 'sum', 'organic apply starts': 'sum', 'sponsored apply starts': 'sum', 'jobReferenceNumber': 'count'})
 
 
 
-    Esperienza = Esperienza.rename(columns={"budget": "Budget", 'jobReferenceNumber':'Annunci','organic apply starts':'Candidature avviate organiche','sponsored apply starts':'Candidature avviate sponsorizzate'})
+    Esperienza = Esperienza.rename(columns={"sumCostLocal": "Budget", 'jobReferenceNumber':'Annunci','organic apply starts':'Candidature avviate organiche','sponsored apply starts':'Candidature avviate sponsorizzate'})
 
 
 
@@ -374,13 +369,13 @@ def ReadAll(file_sp, file_org, file_ex, file_sp_campaign):
 
     Settore = pd.pivot_table(tot_and_campaign, 
                             index='Settore', 
-                            values=['budget', 'organic apply starts', 'sponsored apply starts', 'jobReferenceNumber'], 
-                            aggfunc={'budget': 'sum', 'organic apply starts': 'sum', 'sponsored apply starts': 'sum', 'jobReferenceNumber': 'count'})
+                            values=['sumCostLocal', 'organic apply starts', 'sponsored apply starts', 'jobReferenceNumber'], 
+                            aggfunc={'sumCostLocal': 'sum', 'organic apply starts': 'sum', 'sponsored apply starts': 'sum', 'jobReferenceNumber': 'count'})
 
 
 
 
-    Settore = Settore.rename(columns={"budget": "Budget", 'jobReferenceNumber':'Annunci','organic apply starts':'Candidature avviate organiche','sponsored apply starts':'Candidature avviate sponsorizzate'})
+    Settore = Settore.rename(columns={"sumCostLocal": "Budget", 'jobReferenceNumber':'Annunci','organic apply starts':'Candidature avviate organiche','sponsored apply starts':'Candidature avviate sponsorizzate'})
 
 
 
@@ -399,12 +394,12 @@ def ReadAll(file_sp, file_org, file_ex, file_sp_campaign):
 
     Filiale = pd.pivot_table(tot_and_campaign, 
                             index='Filiale', 
-                            values=['budget', 'organic apply starts', 'sponsored apply starts', 'jobReferenceNumber'], 
-                            aggfunc={'budget': 'sum', 'organic apply starts': 'sum', 'sponsored apply starts': 'sum', 'jobReferenceNumber': 'count'})
+                            values=['sumCostLocal', 'organic apply starts', 'sponsored apply starts', 'jobReferenceNumber'], 
+                            aggfunc={'sumCostLocal': 'sum', 'organic apply starts': 'sum', 'sponsored apply starts': 'sum', 'jobReferenceNumber': 'count'})
 
 
 
-    Filiale = Filiale.rename(columns={"budget": "Budget", 'jobReferenceNumber':'Annunci','organic apply starts':'Candidature avviate organiche','sponsored apply starts':'Candidature avviate sponsorizzate'})
+    Filiale = Filiale.rename(columns={"sumCostLocal": "Budget", 'jobReferenceNumber':'Annunci','organic apply starts':'Candidature avviate organiche','sponsored apply starts':'Candidature avviate sponsorizzate'})
 
 
     Filiale['Candidature avviate organiche per annuncio']= round(Filiale['Candidature avviate organiche']/Filiale['Annunci'],1)
@@ -422,12 +417,12 @@ def ReadAll(file_sp, file_org, file_ex, file_sp_campaign):
 
     Funzione_Aziendale = pd.pivot_table(tot_and_campaign, 
                             index='Funzione Aziendale', 
-                            values=['budget', 'organic apply starts', 'sponsored apply starts', 'jobReferenceNumber'], 
-                            aggfunc={'budget': 'sum', 'organic apply starts': 'sum', 'sponsored apply starts': 'sum', 'jobReferenceNumber': 'count'})
+                            values=['sumCostLocal', 'organic apply starts', 'sponsored apply starts', 'jobReferenceNumber'], 
+                            aggfunc={'sumCostLocal': 'sum', 'organic apply starts': 'sum', 'sponsored apply starts': 'sum', 'jobReferenceNumber': 'count'})
 
 
 
-    Funzione_Aziendale = Funzione_Aziendale.rename(columns={"budget": "Budget", 'jobReferenceNumber':'Annunci','organic apply starts':'Candidature avviate organiche','sponsored apply starts':'Candidature avviate sponsorizzate'})
+    Funzione_Aziendale = Funzione_Aziendale.rename(columns={"sumCostLocal": "Budget", 'jobReferenceNumber':'Annunci','organic apply starts':'Candidature avviate organiche','sponsored apply starts':'Candidature avviate sponsorizzate'})
 
 
     Funzione_Aziendale['Candidature avviate organiche per annuncio']= round(Funzione_Aziendale['Candidature avviate organiche']/Funzione_Aziendale['Annunci'],1)
@@ -445,14 +440,14 @@ def ReadAll(file_sp, file_org, file_ex, file_sp_campaign):
 
 
 
-    Generale = pd.DataFrame({'budget': [tot_and_campaign['budget'].sum()],
+    Generale = pd.DataFrame({'budget': [tot_and_campaign['sumCostLocal'].sum()],
                             'organic apply starts': [tot_and_campaign['organic apply starts'].sum()],
                             'sponsored apply starts': [tot_and_campaign['sponsored apply starts'].sum()],
                             'jobReferenceNumber': [tot_and_campaign['jobReferenceNumber'].count()]})
 
 
 
-    Generale = Generale.rename(columns={"budget": "Budget", 'jobReferenceNumber':'Annunci','organic apply starts':'Candidature avviate organiche','sponsored apply starts':'Candidature avviate sponsorizzate'})
+    Generale = Generale.rename(columns={"sumCostLocal": "Budget", 'jobReferenceNumber':'Annunci','organic apply starts':'Candidature avviate organiche','sponsored apply starts':'Candidature avviate sponsorizzate'})
 
 
 
@@ -466,7 +461,7 @@ def ReadAll(file_sp, file_org, file_ex, file_sp_campaign):
 
 
 
-    Generale['Budget per annuncio']= round(Generale['Budget']/Generale['Annunci'],2)
+    Generale['Budget per annuncio']= round(Generale['budget']/Generale['Annunci'],2)
 
 
     Ruolo= Ruolo.reset_index()
@@ -474,8 +469,11 @@ def ReadAll(file_sp, file_org, file_ex, file_sp_campaign):
     Settore= Settore.reset_index()
     Filiale= Filiale.reset_index()
     Funzione_Aziendale= Funzione_Aziendale.reset_index()
-    
+
     tot3 = tot_and_campaign.drop(columns= 'Campaign')
+
+
+ 
 
     # Visualizziamo il risultato result.to_excel("panoramica.xlsx")
 
@@ -656,7 +654,7 @@ def crea_mappa():
    
 
     # Interfaccia utente
-    st.sidebar.title("Filtra per metadata")
+    st.sidebar.title("Filtro per campagna e ruolo")
     ruoli_sel = st.sidebar.multiselect("Seleziona uno o più ruoli", ruoli, default=ruoli)
     esperienza_sel = st.sidebar.multiselect("Seleziona l'esperienza", esperienza, default=esperienza)
     settore_sel = st.sidebar.multiselect("Seleziona il settore", settore, default=settore)
@@ -777,8 +775,8 @@ def main_style():
 
 
 # Titolo dell'applicazione
-st.set_page_config(page_title="Applicazione di visualizzazione dei dati", page_icon=":chart_with_upwards_trend:",layout="wide")
-st.title("Applicazione di visualizzazione dei dati")
+st.set_page_config(page_title="Umanapp - Applicazione di visualizzazione dei dati", page_icon=":chart_with_upwards_trend:",layout="wide")
+st.title("Umanapp - Applicazione di visualizzazione dei dati")
 
 
 # Menu a tab
